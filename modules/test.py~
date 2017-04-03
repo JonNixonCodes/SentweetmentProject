@@ -1,4 +1,0 @@
-import sentification_mod as sentification
-
-s = sentification.Sentifier('TextBlob')
-print (s.classifier_dict)

@@ -15,12 +15,12 @@ f = open('modules/jar_of_pickles/stanford_featuresets1600000.pickle', 'rb')
 featuresets = pickle.load(f)
 f.close()
 
-N = 8000 #number of featuresets
+N = 16000 #number of featuresets
 # randomise order of feature set
 random.shuffle(featuresets)
 
-training_set = featuresets[:2000]
-testing_set = featuresets[6000:]
+training_set = featuresets[:int(N*0.8)]
+testing_set = featuresets[int(N*0.8):]
 print(len(training_set))
 print(len(testing_set))
 

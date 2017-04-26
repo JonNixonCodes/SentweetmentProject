@@ -39,7 +39,7 @@ for t in all_tweets:
 word_features = []
 fdist = nltk.FreqDist(all_words)
 #print 100 most common words
-most_common = fdist.most_common(6000)
+most_common = fdist.most_common(3000)
 for i in most_common:
     word_features.append(i[0])
 print(word_features)

@@ -35,7 +35,7 @@ for t in all_tweets:
     elif t[1] == 'neg':
         neg_tweets.append(t)
 
-N = 4000 #number of featuresets from each category
+N = 8000 #number of featuresets from each category
 for (text, category) in pos_tweets[:N]:
     featuresets.append((find_features(text), category))
 for (text, category) in neg_tweets[:N]:

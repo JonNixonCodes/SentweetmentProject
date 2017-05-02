@@ -19,9 +19,10 @@ class MyStreamListener(tweepy.StreamListener):
 
     def flush_buf(self):
         csvFile = open('tweets.csv', 'a')
-        csvWriter = csv.writer(csvFile)
+        fieldnames = ['author', 'text', 'date_created', 'favourited', 'retweeted']
+        csvWriter = csv.DictWriter(csvFile, fieldnames=fieldnames)
         for tweet in self.buf:
-            csvWriter.writerow(self.buf)
+            csvWriter.writerow(tweet)
         csvFile.close()
         self.buf = []
         
@@ -58,8 +59,11 @@ class MyStreamListener(tweepy.StreamListener):
 api = twitterConnect_mod.api
 query = input('Enter your query: ')
 
-# clear CSV file
+# clear CSV file and write header
 csvFile = open('tweets.csv', 'w')
+fieldnames = ['author', 'text', 'date_created', 'favourited', 'retweeted']
+csvWriter = csv.DictWriter(csvFile, fieldnames=fieldnames)
+csvWriter.writeheader()
 csvFile.close()
 
 myStreamListener = MyStreamListener()

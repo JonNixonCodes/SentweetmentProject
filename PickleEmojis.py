@@ -94,6 +94,10 @@ f = open('modules/jar_of_pickles/happy_emoji_unicode.pickle', 'wb')
 pickle.dump(happy_emoji, f)
 f.close()
 
+f = open('modules/jar_of_pickles/neutral_emoji_unicode.pickle', 'wb')
+pickle.dump(neutral_emoji, f)
+f.close()
+
 f = open('modules/jar_of_pickles/sad_emoji_unicode.pickle', 'wb')
 pickle.dump(sad_emoji, f)
 f.close()

@@ -1,6 +1,7 @@
 import tweepy
 import csv
-
+#dealing with deadlock
+import fcntl
 import sys
 sys.path.append('modules')
 import twitterConnect_mod
@@ -18,17 +19,24 @@ class MyStreamListener(tweepy.StreamListener):
         return True
 
     def flush_buf(self):
-        csvFile = open('tweets.csv', 'a')
+        #lock file
+        try:
+            fcntl.flock(csvFile, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            print('Error: On obtaining lock, streaming continued')
+            return -1 #exit with fail flag
         fieldnames = ['author', 'text', 'date_created', 'favourited', 'retweeted']
         csvWriter = csv.DictWriter(csvFile, fieldnames=fieldnames)
         for tweet in self.buf:
             csvWriter.writerow(tweet)
-        csvFile.close()
+        #unlock file
+        fcntl.flock(csvFile, fcntl.LOCK_UN)        
         self.buf = []
+        self.buf_count = 0
         
-        print('\n####################################')
-        print('######## WROTE TO tweet.csv ########')
-        print('####################################\n')
+        print('\n\n########################################################')
+        print('################## WROTE TO tweet.csv ##################')
+        print('########################################################\n\n')
         
     def process_tweet(self, tweet):
         new = dict(author = tweet.author.name,
@@ -45,9 +53,9 @@ class MyStreamListener(tweepy.StreamListener):
             return
         self.process_tweet(status)
         self.buf_count += 1
-        if self.buf_count == self.BUF_SIZE:
+        if self.buf_count > self.BUF_SIZE:
+            #attempt to flush buffer
             self.flush_buf()
-            self.buf_count = 0
             
     #disconnect after receiving error 420
     def on_error(self, status_code):
@@ -64,8 +72,10 @@ csvFile = open('tweets.csv', 'w')
 fieldnames = ['author', 'text', 'date_created', 'favourited', 'retweeted']
 csvWriter = csv.DictWriter(csvFile, fieldnames=fieldnames)
 csvWriter.writeheader()
-csvFile.close()
+
 
 myStreamListener = MyStreamListener()
 myStream = tweepy.Stream(auth=api.auth, listener=MyStreamListener())
 myStream.filter(track=[query])
+
+csvFile.close()

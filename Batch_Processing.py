@@ -1,40 +1,152 @@
 import csv
 import datetime
 import time
+#dealing with deadlock
+import fcntl
 import sys
 sys.path.append('modules')
 import sentification_mod as sentification
+import subjectification_mod as subjectification
+import intensification_mod as intensification
 
-def ProcessTweet(text, sentifier):
+
+def ProcessTweet(text, sentifier, subjectifier, intensifier):
     sentiment = sentifier.sentiment(text)
     confidence = sentifier.confidence(text)
-    return (sentiment, confidence)
-    
+    subjectivity = subjectifier.subjectivity(text)
+    intensity = intensifier.intensity(text)
+    return (sentiment, confidence, subjectivity, intensity)
 
+import nltk
+from nltk.tokenize import word_tokenize, RegexpTokenizer, TweetTokenizer, WhitespaceTokenizer
+
+import pickle
+import emoji
+from emoji import UNICODE_EMOJI, EMOJI_UNICODE
+
+
+f = open('modules/jar_of_pickles/emoji_unicode.pickle', 'rb')
+emoji_unicode = pickle.load(f)
+f.close()
+
+f = open('modules/jar_of_pickles/happy_emoji_unicode.pickle', 'rb')
+happy_emoji_unicode = pickle.load(f)
+f.close()
+
+f = open('modules/jar_of_pickles/neutral_emoji_unicode.pickle', 'rb')
+neutral_emoji_unicode = pickle.load(f)
+f.close()
+
+f = open('modules/jar_of_pickles/sad_emoji_unicode.pickle', 'rb')
+sad_emoji_unicode = pickle.load(f)
+f.close()
+
+def FindEmoji(text):
+    happy_emoji_count = 0
+    sad_emoji_count = 0
+    neutral_emoji_count = 0
+    emoji_count = 0
+    
+    text = emoji.demojize(text)
+    # remove emoji
+    regTokenizer = RegexpTokenizer('\s+', gaps=True)
+    tokenizer = TweetTokenizer(preserve_case=False, strip_handles=True, reduce_len=True)
+    words = regTokenizer.tokenize(text)
+    for w in words:
+        if w in emoji_unicode.keys():
+            if w in neutral_emoji_unicode.keys():
+                neutral_emoji_count += 1
+                text = text.replace(w, '__NEUTRAL_EMOJI__', 1)
+            elif w in happy_emoji_unicode.keys():
+                happy_emoji_count += 1
+                text = text.replace(w, '__HAPPY_EMOJI__', 1)
+            elif w in sad_emoji_unicode.keys():
+                sad_emoji_count += 1
+                text = text.replace(w, '__SAD_EMOJI__', 1)
+            else:
+                emoji_count += 1
+                text = text.replace(w, '__EMOJI__')
+        retVal = 0
+        if happy_emoji_count > 0 and sad_emoji_count == 0:
+            retVal = 1
+        elif sad_emoji_count > 0 and happy_emoji_count == 0:
+            retVal = -1
+    return (text, retVal)
+    
 # main
 TIME_INTERVAL = datetime.timedelta(0, 5) #set time interval to 10 sec
 #start_time = datetime.datetime.now()
-start_time = datetime.datetime(2017, 5, 2, 20, 45, 25)
-end_time = start_time + TIME_INTERVAL
+time_initial = datetime.datetime(1994, 1, 14)
+start_time = time_initial
+end_time = time_initial
 interval_iter = 0
 num_tweets = 0
 pos_tweets = 0
+neg_tweets = 0
+subj_tweets = 0
 
 f = open('graph_data.txt', 'w')
 f.close()
 
-s1 = sentification.Sentifier('NB')
+Sent = sentification.Sentifier('NB')
+Subj = subjectification.Subjectifier('TextBlob')
+Intens = intensification.Intensifier('rule')
 csvFile = open('tweets.csv', 'r')
 offset = 0
 
 while(1):
+    #loop until new data is available
+    #while offset is equal to sizeof file
+    while(1):
+        #try to get lock
+        while(1):
+            try:
+                #try to obtain exclusive lock
+                fcntl.flock(csvFile, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except OSError:
+                print('Error: On obtaining lock, sleep, and repeat')
+                #waiting for lock release
+                time.sleep(0.1)
+
+        #HAVE LOCK
+        #compare offset to filesize
+        if (offset != csvFile.seek(0, 2)):
+            break
+        else:
+            #RELEASE LOCK
+            fcntl.flock(csvFile, fcntl.LOCK_UN)
+            time.sleep(0.1)
+            
+
+    #STILL HAVE LOCK
+    file_size = csvFile.seek(0, 2)
     csvFile.seek(offset)
     csvReader = csv.DictReader(csvFile)
+    
+    # load tweets into temporary buffer
+    buffer = []            
     for row in csvReader:
+        print(row)
         author = row['author']
         date_created = datetime.datetime.strptime(row['date_created'], "%Y-%m-%d %H:%M:%S")
         text = row['text']
-        
+        buffer.append({'author': author, 'date_created': date_created, 'text': text})
+    #RELEASE LOCK
+    fcntl.flock(csvFile, fcntl.LOCK_UN)
+    
+    #set offset in csv file
+    offset = csvFile.tell()
+
+    # process each entry in buffer
+    for entry in buffer:
+        author = entry['author']
+        date_created = entry['date_created']
+        text = entry['text']
+        # initialise start_time, end_time
+        if (start_time == time_initial):
+            start_time = date_created
+            end_time = start_time + TIME_INTERVAL
         if (date_created > end_time):
             # iterate interval
             interval_iter += 1
@@ -42,34 +154,52 @@ while(1):
             start_time = end_time
             end_time = start_time + TIME_INTERVAL
             # update graph_data.txt
-            f = open('graph_data.txt', 'a')
-            sentval = int(pos_tweets/num_tweets*100)
-            line = "{0}, {1}\n".format(interval_iter, sentval)
+            sentval = int(pos_tweets/(pos_tweets + neg_tweets)*100)
+            subjval = int(subj_tweets/(num_tweets)*100)
+            line = "{0}, {1}, {2}\n".format(interval_iter, sentval, subjval)
+            f = open('graph_data.txt', 'a')            
             f.write(line)
             f.close()
             # reset counters
             num_tweets = 0
             pos_tweets = 0
+            neg_tweets = 0
+            subj_tweets = 0
             assert date_created < end_time
-            
+                        
             print('\n\n########################################################')
             print('################ WROTE TO graph_data.txt  ################')
             print('########################################################\n\n')
 
-        # calculating sentiment and confidence
-        sentiment, confidence = ProcessTweet(text, s1)
-        # updating counters
-        num_tweets += 1
+        # find emojis
+        text, emoji_val = FindEmoji(text)
+        # calculating sentiment and confidence and subjectivity
+        subjectivity = 1.0
+        confidence = 1.0
+        if emoji_val == 1:
+            sentiment = 'pos'
+        elif emoji_val == -1:
+            sentiment = 'neg'
+        else:
+            sentiment, confidence, subjectivity, intensity = ProcessTweet(text, Sent, Subj, Intens)
+            if intensity > 0:
+                # printing shit
+                print('Author: ', author)
+                print('Date Created: ', date_created)
+                print('Text: ', text)
+                print('Subjectivity: ', str(subjectivity))
+                print('Sentiment: ', sentiment)
+                print('Confidence: ', str(confidence))
+                print('Intensity: ', str(intensity), '\n')
+        
         if sentiment == 'pos':
             pos_tweets += 1
+            subj_tweets += 1
+        else:
+            neg_tweets += 1
+            subj_tweets += 1
+    
+        # updating counters
+        num_tweets += 1
         
-        # printing shit
-        print('Author: ', author)
-        print('Date Created: ', date_created)
-        print('Text: ', text)        
-        print('Sentiment: ', sentiment)
-        print('Confidence: ', str(confidence), '\n')
-    offset = csvFile.tell()
-    # Wait for 1 second ... save processing power
-    time.sleep(1)
 csvFile.close()

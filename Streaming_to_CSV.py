@@ -62,16 +62,19 @@ class MyStreamListener(tweepy.StreamListener):
         if status_code == 420:
             #returning false on an on_data disconnects the stream
             return False
+        else:
+            print('Connection error: ', status_code)
+            return False
 
 #query Twitter
 api = twitterConnect_mod.api
 query = input('Enter your query: ')
 
 # clear CSV file and write header
-csvFile = open('tweets.csv', 'w')
+csvFile = open('tweets.csv', 'w', newline='')
 fieldnames = ['author', 'text', 'date_created', 'favourited', 'retweeted']
 csvWriter = csv.DictWriter(csvFile, fieldnames=fieldnames)
-csvWriter.writeheader()
+#csvWriter.writeheader()
 
 
 myStreamListener = MyStreamListener()

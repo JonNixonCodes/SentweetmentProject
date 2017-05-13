@@ -91,7 +91,7 @@ f.close()
 Sent = sentification.Sentifier('NB')
 Subj = subjectification.Subjectifier('TextBlob')
 Intens = intensification.Intensifier('rule')
-csvFile = open('tweets.csv', 'r')
+csvFile = open('tweets.csv', newline='')
 offset = 0
 
 while(1):
@@ -110,7 +110,8 @@ while(1):
                 time.sleep(0.1)
 
         #HAVE LOCK
-        #compare offset to filesize
+        #check if any new data
+        #by comparing offset to EOF
         if (offset != csvFile.seek(0, 2)):
             break
         else:
@@ -122,16 +123,17 @@ while(1):
     #STILL HAVE LOCK
     file_size = csvFile.seek(0, 2)
     csvFile.seek(offset)
-    csvReader = csv.DictReader(csvFile)
+    csvReader = csv.DictReader(csvFile, fieldnames = ['author', 'text', 'date_created', 'favourited', 'retweeted'])
     
     # load tweets into temporary buffer
-    buffer = []            
+    buffer = []
     for row in csvReader:
-        print(row)
+        #print(row)
         author = row['author']
         date_created = datetime.datetime.strptime(row['date_created'], "%Y-%m-%d %H:%M:%S")
         text = row['text']
         buffer.append({'author': author, 'date_created': date_created, 'text': text})
+
     #RELEASE LOCK
     fcntl.flock(csvFile, fcntl.LOCK_UN)
     

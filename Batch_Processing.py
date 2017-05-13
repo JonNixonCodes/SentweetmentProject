@@ -72,9 +72,17 @@ def FindEmoji(text):
         elif sad_emoji_count > 0 and happy_emoji_count == 0:
             retVal = -1
     return (text, retVal)
+
+def WriteGraphData(graph_file, data):
+    f = open(graph_file, 'a')            
+    f.write(data)
+    f.close()
+    print('\n\n########################################################')
+    print('################ WROTE TO %s  ################' % graph_file)
+    print('########################################################\n\n')    
     
 # main
-TIME_INTERVAL = datetime.timedelta(0, 5) #set time interval to 10 sec
+TIME_INTERVAL = datetime.timedelta(0, 1) #set time interval to 10 sec
 #start_time = datetime.datetime.now()
 time_initial = datetime.datetime(1994, 1, 14)
 start_time = time_initial
@@ -159,19 +167,22 @@ while(1):
             sentval = int(pos_tweets/(pos_tweets + neg_tweets)*100)
             subjval = int(subj_tweets/(num_tweets)*100)
             line = "{0}, {1}, {2}\n".format(interval_iter, sentval, subjval)
-            f = open('graph_data.txt', 'a')            
-            f.write(line)
-            f.close()
+            
+            #write to graph data to file
+            if (interval_iter % 15 == 0):
+                WriteGraphData('graph_min.txt', line)
+            elif (interval_iter % 900 == 0):
+                WriteGraphData('graph_hour.txt', line)
+            elif (interval_iter % 3600 == 0):
+                WriteGraphData('graph_day.txt', line)
+            WriteGraphData('graph_sec.txt', line)
+            
             # reset counters
             num_tweets = 0
             pos_tweets = 0
             neg_tweets = 0
             subj_tweets = 0
-            assert date_created < end_time
-                        
-            print('\n\n########################################################')
-            print('################ WROTE TO graph_data.txt  ################')
-            print('########################################################\n\n')
+            assert date_created <= end_time                        
 
         # find emojis
         text, emoji_val = FindEmoji(text)

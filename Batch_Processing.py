@@ -172,7 +172,7 @@ while(1):
             if (interval_iter % 15 == 0):
                 WriteGraphData('graph_min.txt', line)
             elif (interval_iter % 900 == 0):
-                WriteGraphData('graph_hour.txt', line)
+                WriteGraphData('graph_hr.txt', line)
             elif (interval_iter % 3600 == 0):
                 WriteGraphData('graph_day.txt', line)
             WriteGraphData('graph_sec.txt', line)

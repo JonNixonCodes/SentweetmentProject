@@ -29,18 +29,20 @@ def import_all_features():
     return all_features
 
 
-def import_featureset_template(num_features):
-    """Import and return featureset template with number of features"""
-    try:
-        f = open('modules/jar_of_pickles/featureset{}.pickle'.format(num_features), 'rb')
-        featureset_template = pickle.load(f)
-        f.close()
-        return featureset_template
-    except:
-        print('Error: Loading file featureset{}'.format(num_features))
-        return False
+def pickle_all_features():
+    """Save all features from all tweets as all_features1600000.pickle"""
+    all_tweets = import_tweets()
+    num_tweets = len(all_tweets)
+    for tweet in all_tweets:
+        features = preprocess(tweet[0])
+        for f in features:
+            all_features.append(f)
+    """save all_features"""
+    f = open('modules/jar_of_pickles/all_features{}.pickle'.format(num_tweets), 'wb')
+    pickle.dump(all_features, f)
+    f.close()
 
-    
+
 def split_camelcase(text):
     """split camelCase into list"""
     return re.sub('(?!^)([A-Z][a-z]+)', r' \1', text).split()
@@ -81,59 +83,21 @@ def extract_featureset(text, featureset_template):
     
 def main():
     all_tweets = import_tweets()
-    pos_tweets = []
-    neg_tweets = []
-    all_features = import_all_features
+    all_features = import_all_features()
+    featureset_template = {}
+    num_tweets = len(all_tweets)
     num_features = 6000
-    featureset_template = import_featureset_template(num_features)
 
-    """separate pos/neg tweets"""
-    for tweet in all_tweets:
-        if tweet[1] == 'pos':
-            pos_tweets.append(tweet)
-        elif tweet[1] == 'neg':
-            neg_tweets.append(tweet)
-
-    """allocate training set"""
-    random.shuffle(pos_tweets)
-    random.shuffle(neg_tweets)
-    training_size = 10000
-    training_set = pos_tweets[:int(training_size/2)] + neg_tweets[:int(training_size/2)]
-    random.shuffle(training_set)
-    training_featuresets = []
-    for tweet in training_set:
-        text = tweet[0]
-        sentiment = tweet[1]
-        featureset = extract_featureset(text, featureset_template)
-        training_featuresets.append((featureset, sentiment))
-
-    """allocate testing set"""
-    testing_size = 1000
-    testing_set = pos_tweets[:-int(testing_size/2)] + neg_tweets[:-int(testing_size/2)]
-    testing_featuresets = []
-    for tweet in testing_set:
-        text = tweet[0]
-        sentiment = tweet[1]
-        featureset = extract_featureset(text, featureset_template)
-        testing_featuresets.append((featureset, sentiment))
-    #print(testing_feature_set[0])
-    #print(training_feature_set[0])
+    fdist1 = FreqDist(all_features)
+    print(fdist1.most_common(50))
     
-    """training"""
-    MNBclassifier = SklearnClassifier(MultinomialNB())
-    MNBclassifier.train(training_featuresets)
-    print(sorted(MNBclassifier.labels()))
+    """define feature set"""
+    for item in fdist1.most_common(num_features):
+        featureset_template[item[0]] = False
 
-    """testing"""
-    #s1 = "I'm happy in the morning :)"
-    #result = MNBclassifier.classify(extract_features(s1, featureset))
-    #print(result)
-    accuracy = nltk.classify.accuracy(MNBclassifier, testing_featuresets)
-    print(accuracy)
-
-    """save classifier"""
-    f = open('modules/jar_of_pickles/classifierStanford{}.pickle'.format(training_size), 'wb')
-    pickle.dump(MNBclassifier, f)
+    """save feature set template"""
+    f = open('modules/jar_of_pickles/featureset{}.pickle'.format(num_features), 'wb')
+    pickle.dump(featureset_template, f)
     f.close()
 
 if __name__ == "__main__":

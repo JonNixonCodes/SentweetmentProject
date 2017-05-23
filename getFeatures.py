@@ -10,6 +10,7 @@ import random
 import re
 import nltk
 import math
+import numpy as np
 from nltk import FreqDist
 from nltk.tokenize import TweetTokenizer
 from nltk.corpus import stopwords
@@ -75,12 +76,23 @@ def preprocess(text):
 
 
 def extract_featureset(text, featureset_template):
-    """Extract features from text and return formatted feature set"""
+    """Extract features from text and return feature set formatted as dict"""
     featureset = featureset_template.copy()
     features = preprocess(text)
     for f in features:
         if f in featureset.keys():
             featureset[f] = True
+    return featureset
+
+
+def extract_featureset_array(text, featureset_keys_sorted):
+    """Extract features from text and return feature set formatted as numpy array"""
+    features = preprocess(text)
+    featureset = np.zeros(len(featureset_keys_sorted), dtype=bool)
+    for f in features:
+        if f in featureset_keys_sorted:
+            key_index = featureset_keys_sorted.index(f)
+            featureset[key_index] = True
     return featureset
 
     
@@ -106,12 +118,13 @@ def main():
     #print(fdist1.most_common(50))    
     for item in fdist1.most_common(num_features):
         featureset_template[item[0]] = False
+    featureset_keys_sorted = sorted(featureset_template.keys())
     print('DONE')
         
-    """save feature set template"""
-    print('saving featureset template...', end='')
-    f = open('modules/jar_of_pickles/featureset{}.pickle'.format(num_features), 'wb')
-    pickle.dump(featureset_template, f)
+    """save feature set keys"""
+    print('saving featureset keys...', end='')
+    f = open('modules/jar_of_pickles/featureset_keys{}.pickle'.format(num_features), 'wb')
+    pickle.dump(featureset_keys_sorted, f)
     f.close()
     print('DONE')
 
@@ -152,7 +165,7 @@ def main():
             print('extracting featuresets from batch {}/{}...'.format(batch_num+1, num_batches), end='')
             batch_featuresets = [(featureset_template, '...')]*batch_size
             for index, tweet in enumerate(batch):
-                featureset = extract_featureset(tweet[0], featureset_template)
+                featureset = extract_featureset_array(tweet[0], featureset_keys_sorted)
                 sentiment = tweet[1]
                 batch_featuresets[index] = ((featureset, sentiment))
 
@@ -168,7 +181,7 @@ def main():
         print('extracting featuresets from tweets...', end='')
         all_featuresets = [(featureset_template, '...')]*num_tweets    
         for index, tweet in enumerate(tweetset):
-            featureset = extract_featureset(tweet[0], featureset_template)
+            featureset = extract_featureset_array(tweet[0], featureset_keys_sorted)
             sentiment = tweet[1]
             all_featuresets[index] = ((featureset, sentiment))
             print('DONE')

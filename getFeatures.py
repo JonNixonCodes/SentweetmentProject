@@ -2,6 +2,8 @@
 """
 Test file for creating data training module
 """
+import sys
+import os.path
 import pickle
 import string
 import random
@@ -84,21 +86,68 @@ def extract_featureset(text, featureset_template):
 def main():
     all_tweets = import_tweets()
     all_features = import_all_features()
+    all_featuresets = []
     featureset_template = {}
-    num_tweets = len(all_tweets)
-    num_features = 6000
+    num_tweets = 10000
+    num_features = 3000
 
-    fdist1 = FreqDist(all_features)
-    print(fdist1.most_common(50))
+    """check arguments"""
+    if len(sys.argv) > 1:
+        num_features = int(sys.argv[1])
+        print('arg1: num_features = {}'.format(num_features))
+    if len(sys.argv) > 2:
+        num_tweets = int(sys.argv[2])
+        print('arg2: num_tweets = {}'.format(num_tweets))                
     
     """define feature set"""
+    print('generating featureset template...', end='')
+    fdist1 = FreqDist(all_features)
+    #print(fdist1.most_common(50))    
     for item in fdist1.most_common(num_features):
         featureset_template[item[0]] = False
-
+    print('DONE')
+        
     """save feature set template"""
+    print('saving featureset template...', end='')
     f = open('modules/jar_of_pickles/featureset{}.pickle'.format(num_features), 'wb')
     pickle.dump(featureset_template, f)
     f.close()
+    print('DONE')
+
+    """separate pos/neg tweets"""
+    print('separating pos/neg tweets...', end='')
+    pos_tweets = []
+    neg_tweets = []    
+    for tweet in all_tweets:
+        if tweet[1] == 'pos':
+            pos_tweets.append(tweet)
+        elif tweet[1] == 'neg':
+            neg_tweets.append(tweet)
+    print('DONE')
+
+    """allocate set of tweets"""
+    print('allocating {} tweets...'.format(num_tweets), end='')
+    random.shuffle(pos_tweets)
+    random.shuffle(neg_tweets)
+    tweetset = pos_tweets[:int(num_tweets/2)] + neg_tweets[:int(num_tweets/2)]
+    random.shuffle(tweetset)
+    print('DONE')
+    
+    """extracting feature sets from tweets"""
+    print('extracting featuresets from tweets...', end='')
+    all_featuresets = [(featureset_template, '...')]*num_tweets    
+    for index, tweet in enumerate(tweetset):
+        featureset = extract_featureset(tweet[0], featureset_template)
+        sentiment = tweet[1]
+        all_featuresets[index] = ((featureset, sentiment))
+    print('DONE')
+
+    """save all feature sets from all tweets"""
+    print('saving all featuresets...', end='')
+    f = open('modules/jar_of_pickles/all_featuresets{}_{}.pickle'.format(num_features, num_tweets), 'wb')
+    pickle.dump(all_featuresets, f)
+    f.close()
+    print('DONE')
 
 if __name__ == "__main__":
     main()

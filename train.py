@@ -2,6 +2,7 @@
 """
 Test file for creating data training module
 """
+import sys
 import pickle
 import string
 import random
@@ -40,6 +41,18 @@ def import_featureset_template(num_features):
         print('Error: Loading file featureset{}'.format(num_features))
         return False
 
+
+def import_featuresets(num_features, num_tweets):
+    """Import and return featuresets from subset of tweets"""
+    try:
+        f = open('modules/jar_of_pickles/all_featuresets{}_{}.pickle'.format(num_features, num_tweets), 'rb')
+        all_featuresets = pickle.load(f)
+        f.close()
+        return all_featuresets
+    except:
+        print('Error: Loading file all_featureset{}_{}.pickle'.format(num_features, num_tweets))
+        return False    
+    
     
 def split_camelcase(text):
     """split camelCase into list"""
@@ -80,61 +93,70 @@ def extract_featureset(text, featureset_template):
 
     
 def main():
-    all_tweets = import_tweets()
     pos_tweets = []
     neg_tweets = []
-    all_features = import_all_features
-    num_features = 6000
-    featureset_template = import_featureset_template(num_features)
+    num_features = 3000
+    num_tweets = 10000
 
+    """check arguments"""
+    if len(sys.argv) > 1:
+        num_features = int(sys.argv[1])
+        print('arg1: num_features = {}'.format(num_features))
+    if len(sys.argv) > 2:
+        num_tweets = int(sys.argv[2])
+        print('arg2: num_tweets = {}'.format(num_tweets))        
+
+    """import featuresets from subset of tweets"""
+    print('importing featuresets...', end='')
+    all_featuresets = import_featuresets(num_features, num_tweets)
+    print('DONE')
+        
     """separate pos/neg tweets"""
-    for tweet in all_tweets:
+    print('separating pos/neg featuresets...', end='')
+    for tweet in all_featuresets:
         if tweet[1] == 'pos':
             pos_tweets.append(tweet)
         elif tweet[1] == 'neg':
             neg_tweets.append(tweet)
+    print('DONE')
 
     """allocate training set"""
+    print('allocating training set...', end='')    
     random.shuffle(pos_tweets)
     random.shuffle(neg_tweets)
-    training_size = 10000
-    training_set = pos_tweets[:int(training_size/2)] + neg_tweets[:int(training_size/2)]
-    random.shuffle(training_set)
-    training_featuresets = []
-    for tweet in training_set:
-        text = tweet[0]
-        sentiment = tweet[1]
-        featureset = extract_featureset(text, featureset_template)
-        training_featuresets.append((featureset, sentiment))
+    training_size = int(num_tweets*0.9)
+    training_featuresets = pos_tweets[:int(training_size/2)] + neg_tweets[:int(training_size/2)]
+    random.shuffle(training_featuresets)
+    print('DONE')
+    #print(len(training_featuresets))    
 
     """allocate testing set"""
-    testing_size = 1000
-    testing_set = pos_tweets[:-int(testing_size/2)] + neg_tweets[:-int(testing_size/2)]
-    testing_featuresets = []
-    for tweet in testing_set:
-        text = tweet[0]
-        sentiment = tweet[1]
-        featureset = extract_featureset(text, featureset_template)
-        testing_featuresets.append((featureset, sentiment))
-    #print(testing_feature_set[0])
-    #print(training_feature_set[0])
+    print('allocating testing set...', end='')
+    testing_size = num_tweets-training_size
+    testing_featuresets = pos_tweets[-int(testing_size/2):] + neg_tweets[-int(testing_size/2):]
+    print('DONE')
+    #print(len(testing_featuresets))
     
     """training"""
+    print('training classifier...', end='')
     MNBclassifier = SklearnClassifier(MultinomialNB())
     MNBclassifier.train(training_featuresets)
-    print(sorted(MNBclassifier.labels()))
+    print('DONE')
+    #print(sorted(MNBclassifier.labels()))    
 
     """testing"""
     #s1 = "I'm happy in the morning :)"
     #result = MNBclassifier.classify(extract_features(s1, featureset))
     #print(result)
     accuracy = nltk.classify.accuracy(MNBclassifier, testing_featuresets)
-    print(accuracy)
+    print('acc = {}'.format(accuracy))
 
     """save classifier"""
+    print('saving classifier...', end='')    
     f = open('modules/jar_of_pickles/classifierStanford{}.pickle'.format(training_size), 'wb')
     pickle.dump(MNBclassifier, f)
     f.close()
+    print('DONE')
 
 if __name__ == "__main__":
     main()

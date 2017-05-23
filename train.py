@@ -44,14 +44,18 @@ def import_featureset_template(num_features):
 
 def import_featuresets(num_features, num_tweets):
     """Import and return featuresets from subset of tweets"""
+    all_featuresets = []
     try:
-        f = open('modules/jar_of_pickles/all_featuresets{}_{}.pickle'.format(num_features, num_tweets), 'rb')
-        all_featuresets = pickle.load(f)
-        f.close()
-        return all_featuresets
+            f = open('modules/jar_of_pickles/all_featuresets{}_{}.pickle'.format(num_features, num_tweets), 'rb')
     except:
         print('Error: Loading file all_featureset{}_{}.pickle'.format(num_features, num_tweets))
-        return False    
+        return False
+    while True:
+        try:
+            all_featuresets = all_featuresets + pickle.load(f)
+            print(len(all_featuresets))
+        except EOFError:
+            return all_featuresets
     
     
 def split_camelcase(text):
@@ -110,6 +114,7 @@ def main():
     print('importing featuresets...', end='')
     all_featuresets = import_featuresets(num_features, num_tweets)
     print('DONE')
+    print(len(all_featuresets))
         
     """separate pos/neg tweets"""
     print('separating pos/neg featuresets...', end='')

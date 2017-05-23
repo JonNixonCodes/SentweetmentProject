@@ -9,6 +9,7 @@ import string
 import random
 import re
 import nltk
+import math
 from nltk import FreqDist
 from nltk.tokenize import TweetTokenizer
 from nltk.corpus import stopwords
@@ -132,22 +133,52 @@ def main():
     tweetset = pos_tweets[:int(num_tweets/2)] + neg_tweets[:int(num_tweets/2)]
     random.shuffle(tweetset)
     print('DONE')
-    
-    """extracting feature sets from tweets"""
-    print('extracting featuresets from tweets...', end='')
-    all_featuresets = [(featureset_template, '...')]*num_tweets    
-    for index, tweet in enumerate(tweetset):
-        featureset = extract_featureset(tweet[0], featureset_template)
-        sentiment = tweet[1]
-        all_featuresets[index] = ((featureset, sentiment))
-    print('DONE')
 
-    """save all feature sets from all tweets"""
-    print('saving all featuresets...', end='')
-    f = open('modules/jar_of_pickles/all_featuresets{}_{}.pickle'.format(num_features, num_tweets), 'wb')
-    pickle.dump(all_featuresets, f)
-    f.close()
-    print('DONE')
+    """split feature extraction into batch processes"""
+    batch_size = 5000
+    num_batches = math.ceil(num_tweets/batch_size)
+    print('number of batches: {}\tbatch size: {}'.format(num_batches, batch_size))
+    if num_tweets > batch_size:
+        """write to file"""
+        f = open('modules/jar_of_pickles/all_featuresets{}_{}.pickle'.format(num_features, num_tweets), 'wb')
+        f.close()        
+        for batch_num in range(num_batches):
+            start = batch_num*batch_size
+            end = start+batch_size-1
+            if end > num_tweets: end = num_tweets-1
+            batch = tweetset[start:end]
+
+            """extract feature sets from batch of tweets"""
+            print('extracting featuresets from batch {}/{}...'.format(batch_num+1, num_batches), end='')
+            batch_featuresets = [(featureset_template, '...')]*batch_size
+            for index, tweet in enumerate(batch):
+                featureset = extract_featureset(tweet[0], featureset_template)
+                sentiment = tweet[1]
+                batch_featuresets[index] = ((featureset, sentiment))
+
+            """save feature sets from batch of tweets"""
+            print('saving...', end='')
+            f = open('modules/jar_of_pickles/all_featuresets{}_{}.pickle'.format(num_features, num_tweets), 'a+b')
+            pickle.dump(batch_featuresets, f)
+            f.close()
+            print('DONE')
+            
+    else: 
+        """extracting feature sets from all tweets"""
+        print('extracting featuresets from tweets...', end='')
+        all_featuresets = [(featureset_template, '...')]*num_tweets    
+        for index, tweet in enumerate(tweetset):
+            featureset = extract_featureset(tweet[0], featureset_template)
+            sentiment = tweet[1]
+            all_featuresets[index] = ((featureset, sentiment))
+            print('DONE')
+
+        """save all feature sets from all tweets"""
+        print('saving all featuresets...', end='')
+        f = open('modules/jar_of_pickles/all_featuresets{}_{}.pickle'.format(num_features, num_tweets), 'wb')
+        pickle.dump(all_featuresets, f)
+        f.close()
+        print('DONE')
 
 if __name__ == "__main__":
     main()

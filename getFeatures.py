@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """
-Test file for creating data training module
+Get features from subset of tweets in stanford corpora
+Save featureset keys and featuresets
 """
 import sys
 import os.path
@@ -73,6 +74,30 @@ def preprocess(text):
         bigrams.append(' '.join(wordpair))
     features = unigrams + bigrams
     return nltk.pos_tag(features) + hashtags
+
+
+def import_featureset_template(num_features):
+    """Import and return featureset template with number of features"""
+    try:
+        f = open('modules/jar_of_pickles/featureset{}.pickle'.format(num_features), 'rb')
+        featureset_template = pickle.load(f)
+        f.close()
+        return featureset_template
+    except:
+        print('Error: Loading file featureset{}'.format(num_features))
+        return False
+
+
+def import_featureset_keys(num_features):
+    """Import and return featureset keys with number of features"""
+    try:
+        f = open('modules/jar_of_pickles/featureset_keys{}.pickle'.format(num_features), 'rb')
+        featureset_keys = pickle.load(f)
+        f.close()
+        return featureset_keys
+    except:
+        print('Error: Loading file featureset_keys{}'.format(num_features))
+        return False
 
 
 def extract_featureset(text, featureset_template):

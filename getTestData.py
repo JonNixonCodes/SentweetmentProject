@@ -18,7 +18,7 @@ def main():
         print('arg1: num_features = {}'.format(num_features))
     
     """load test tweets"""
-    print('importing test tweets...', end='')
+    print('importing test tweets (stanford)...', end='')
     f = open('modules/jar_of_pickles/stanfordTestData.pickle', 'rb')
     test_tweets = pickle.load(f)
     f.close()
@@ -42,7 +42,7 @@ def main():
     
     """obtain features from test tweets"""
     print('extracting features from test tweets...', end='')
-    featureset_keys = train.import_featureset_keys(num_features)    
+    featureset_keys = getFeatures.import_featureset_keys(num_features)    
     num_tweets = len(test_tweets)
     blankfeatureset = (np.zeros(num_features, dtype=bool))
     testing_set = [(blankfeatureset, '...')]*num_tweets
@@ -53,8 +53,8 @@ def main():
     print('DONE')
 
     """pickle testing set"""
-    print('saving test featureset...', end='')
-    f = open('modules/jar_of_pickles/stanfordTestFeaturesets.pickle', 'wb')
+    print('saving test featureset (stanford)...', end='')
+    f = open('modules/jar_of_pickles/testset_stanford{}.pickle'.format(num_features), 'wb')
     pickle.dump(testing_set, f)
     f.close()
     print('DONE')

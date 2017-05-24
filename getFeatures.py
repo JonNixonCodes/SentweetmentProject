@@ -163,7 +163,8 @@ def main():
 
             """extract feature sets from batch of tweets"""
             print('extracting featuresets from batch {}/{}...'.format(batch_num+1, num_batches), end='')
-            batch_featuresets = [(featureset_template, '...')]*batch_size
+            blankfeatureset = (np.zeros(len(featureset_keys_sorted), dtype=bool))
+            batch_featuresets = [(blankfeatureset, '...')]*batch_size
             for index, tweet in enumerate(batch):
                 featureset = extract_featureset_array(tweet[0], featureset_keys_sorted)
                 sentiment = tweet[1]
@@ -179,7 +180,8 @@ def main():
     else: 
         """extracting feature sets from all tweets"""
         print('extracting featuresets from tweets...', end='')
-        all_featuresets = [(featureset_template, '...')]*num_tweets    
+        blankfeatureset = (np.zeros(len(featureset_keys_sorted), dtype=bool))
+        all_featuresets = [(blankfeatureset, '...')]*num_tweets    
         for index, tweet in enumerate(tweetset):
             featureset = extract_featureset_array(tweet[0], featureset_keys_sorted)
             sentiment = tweet[1]

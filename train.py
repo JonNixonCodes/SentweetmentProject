@@ -7,7 +7,9 @@ import pickle
 import string
 import random
 import re
+import math
 import nltk
+import numpy as np
 from nltk import FreqDist
 from nltk.tokenize import TweetTokenizer
 from nltk.corpus import stopwords
@@ -42,7 +44,19 @@ def import_featureset_template(num_features):
         return False
 
 
-def import_featuresets(num_features, num_tweets):
+def import_featureset_keys(num_features):
+    """Import and return featureset keys with number of features"""
+    try:
+        f = open('modules/jar_of_pickles/featureset_keys{}.pickle'.format(num_features), 'rb')
+        featureset_keys = pickle.load(f)
+        f.close()
+        return featureset_keys
+    except:
+        print('Error: Loading file featureset_keys{}'.format(num_features))
+        return False
+    
+
+def import_all_featuresets(num_features, num_tweets):
     """Import and return featuresets from subset of tweets"""
     all_featuresets = []
     try:
@@ -53,11 +67,20 @@ def import_featuresets(num_features, num_tweets):
     while True:
         try:
             all_featuresets = all_featuresets + pickle.load(f)
-            print(len(all_featuresets))
+            #print(len(all_featuresets))
         except EOFError:
             return all_featuresets
     
-    
+
+def import_batch_featuresets(f):
+    """import and return subset of featuresets from file"""
+    try:
+        batch = pickle.load(f)
+        return batch
+    except EOFError:
+        return False
+
+        
 def split_camelcase(text):
     """split camelCase into list"""
     return re.sub('(?!^)([A-Z][a-z]+)', r' \1', text).split()
@@ -101,6 +124,7 @@ def main():
     neg_tweets = []
     num_features = 3000
     num_tweets = 10000
+    MNBclassifier = MultinomialNB()
 
     """check arguments"""
     if len(sys.argv) > 1:
@@ -110,58 +134,79 @@ def main():
         num_tweets = int(sys.argv[2])
         print('arg2: num_tweets = {}'.format(num_tweets))        
 
-    """import featuresets from subset of tweets"""
-    print('importing featuresets...', end='')
-    all_featuresets = import_featuresets(num_features, num_tweets)
-    print('DONE')
-    print(len(all_featuresets))
+    """split training into batch processes"""
+    batch_size = 5000
+    num_batches = math.ceil(num_tweets/batch_size)
+    print('number of batches: {}\tbatch size: {}'.format(num_batches, batch_size))
+    if num_tweets > batch_size:
+        """opening file"""
+        f = open('modules/jar_of_pickles/all_featuresets{}_{}.pickle'.format(num_features, num_tweets), 'rb')
+
+        """import batch of featuresets"""        
+        for batch_num in range(num_batches):            
+            print('importing batch {}/{}...'.format(batch_num+1, num_batches), end='')
+            batch = import_batch_featuresets(f)
+            print('DONE')
+
+            """partial training of classifier"""
+            print('training on batch {}/{}...'.format(batch_num+1, num_batches), end='')
+            X = np.zeros((batch_size, num_features), dtype=bool)
+            y = np.empty(batch_size, dtype='<U3')
+            classes = np.array(('pos', 'neg'))
+            for index, tweet in enumerate(batch):
+                featureset = tweet[0]
+                sentiment = tweet[1]
+                X[index] = featureset
+                y[index] = sentiment
+            MNBclassifier.partial_fit(X, y, classes)
+            print('DONE')
+            #print(np.shape(X))
+            #print(np.shape(y))            
+        f.close()
         
-    """separate pos/neg tweets"""
-    print('separating pos/neg featuresets...', end='')
-    for tweet in all_featuresets:
-        if tweet[1] == 'pos':
-            pos_tweets.append(tweet)
-        elif tweet[1] == 'neg':
-            neg_tweets.append(tweet)
-    print('DONE')
-
-    """allocate training set"""
-    print('allocating training set...', end='')    
-    random.shuffle(pos_tweets)
-    random.shuffle(neg_tweets)
-    training_size = int(num_tweets*0.9)
-    training_featuresets = pos_tweets[:int(training_size/2)] + neg_tweets[:int(training_size/2)]
-    random.shuffle(training_featuresets)
-    print('DONE')
-    #print(len(training_featuresets))    
-
-    """allocate testing set"""
-    print('allocating testing set...', end='')
-    testing_size = num_tweets-training_size
-    testing_featuresets = pos_tweets[-int(testing_size/2):] + neg_tweets[-int(testing_size/2):]
-    print('DONE')
-    #print(len(testing_featuresets))
+    else:        
+        """import featuresets from subset of tweets"""
+        print('importing all featuresets...', end='')
+        all_featuresets = import_all_featuresets(num_features, num_tweets)
+        print('DONE')
+        print(len(all_featuresets))
     
-    """training"""
-    print('training classifier...', end='')
-    MNBclassifier = SklearnClassifier(MultinomialNB())
-    MNBclassifier.train(training_featuresets)
-    print('DONE')
-    #print(sorted(MNBclassifier.labels()))    
-
-    """testing"""
-    #s1 = "I'm happy in the morning :)"
-    #result = MNBclassifier.classify(extract_features(s1, featureset))
-    #print(result)
-    accuracy = nltk.classify.accuracy(MNBclassifier, testing_featuresets)
-    print('acc = {}'.format(accuracy))
+        """training"""        
+        print('training classifier...', end='')
+        X = np.zeros((num_tweets, num_features), dtype=bool)
+        y = np.empty(num_tweets, dtype='<U3')
+        for index, tweet in enumerate(all_featuresets):
+            featureset = tweet[0]
+            sentiment = tweet[1]
+            X[index] = featureset
+            y[index] = sentiment
+        MNBclassifier.fit(X, y)
+        print('DONE')
 
     """save classifier"""
     print('saving classifier...', end='')    
-    f = open('modules/jar_of_pickles/classifierStanford{}.pickle'.format(training_size), 'wb')
+    f = open('modules/jar_of_pickles/classifierStanford{}_{}.pickle'.format(num_features, num_tweets), 'wb')
     pickle.dump(MNBclassifier, f)
     f.close()
     print('DONE')
+        
+    """testing"""
+    print('importing testset...', end='')
+    f = open('modules/jar_of_pickles/stanfordTestFeaturesets.pickle', 'rb')
+    testing_set = pickle.load(f)
+    f.close()
+    X = np.zeros((len(testing_set), num_features), dtype=bool)
+    y = np.empty(len(testing_set), dtype='<U3')
+    for index, tweet in enumerate(testing_set):
+        featureset = tweet[0]
+        sentiment = tweet[1]
+        X[index] = featureset
+        y[index] = sentiment    
+    print('DONE')
+    print('testing...', end='')
+    accuracy = MNBclassifier.score(X, y)
+    print('DONE')
+    print('acc = {}'.format(accuracy))
 
 if __name__ == "__main__":
     main()

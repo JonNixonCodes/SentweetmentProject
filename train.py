@@ -93,9 +93,7 @@ def main():
     print('DONE')
         
     """testing"""
-    print('importing testset...', end='')
-    f = open('modules/jar_of_pickles/testset_stanford{}.pickle'.format(num_features), 'rb')
-    testing_set = pickle.load(f)
+    testing_set = batch
     f.close()
     X = np.zeros((len(testing_set), num_features), dtype=bool)
     y = np.empty(len(testing_set), dtype='<U3')
@@ -105,7 +103,7 @@ def main():
         X[index] = featureset
         y[index] = sentiment    
     print('DONE')
-    print('testing...', end='')
+    print('(DODGY) testing...', end='')
     accuracy = MNBclassifier.score(X, y)
     print('DONE')
     print('acc = {}'.format(accuracy))
